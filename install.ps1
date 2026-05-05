@@ -57,26 +57,14 @@ foreach ($f in @("on_power_change.ps1", "start_ts_minimized.ps1")) {
 }
 Write-Host "Scripts copied      : on_power_change.ps1, start_ts_minimized.ps1"
 
-# ── 3. Detect NVIDIA discrete GPU ────────────────────────────────────────────
+# ── 3. Report NVIDIA detection (handled at runtime by on_power_change.ps1) ───
 
 $pnpLines = & pnputil /enum-devices /class Display 2>&1
-$nvidiaId = $null
 foreach ($line in $pnpLines) {
-    if ($line -match "Instance ID:\s*(.+VEN_10DE.+SUBSYS.+)") {
-        $nvidiaId = $Matches[1].Trim()
+    if ($line -match 'Instance ID:\s*(PCI\\VEN_10DE\S+)') {
+        Write-Host "NVIDIA device found : $($Matches[1].Trim())"
         break
     }
-}
-
-if ($nvidiaId) {
-    Write-Host "NVIDIA device found : $nvidiaId"
-    $ps1Path = "$TS_DIR\on_power_change.ps1"
-    $src = [System.IO.File]::ReadAllText($ps1Path, [System.Text.Encoding]::UTF8)
-    $src = $src -replace '\$NVIDIA\s*=\s*"[^"]*"', "`$NVIDIA  = `"$nvidiaId`""
-    [System.IO.File]::WriteAllText($ps1Path, $src, [System.Text.Encoding]::UTF8)
-    Write-Host "NVIDIA ID patched in on_power_change.ps1"
-} else {
-    Write-Warning "NVIDIA discrete GPU not detected. Update `$NVIDIA in on_power_change.ps1 manually."
 }
 
 # ── 4. Fix ThrottleStop.ini profile names ────────────────────────────────────
@@ -136,8 +124,8 @@ foreach ($task in @(
 )) {
     $tmp = "$env:TEMP\ts_task_$($task.Name).xml"
     [System.IO.File]::WriteAllText($tmp, $task.Xml, [System.Text.Encoding]::Unicode)
-    schtasks /delete /tn $task.Name /f 2>&1 | Out-Null
-    schtasks /create /tn $task.Name /xml $tmp /f | Out-Null
+    try { schtasks /delete /tn $task.Name /f 2>&1 | Out-Null } catch {}
+    schtasks /create /tn $task.Name /xml $tmp /f 2>&1 | Out-Null
     Remove-Item $tmp
     Write-Host "Task created        : $($task.Name)"
 }
