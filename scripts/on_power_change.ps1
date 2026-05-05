@@ -23,7 +23,7 @@ function Set-TSProfile($profileIndex) {
     Start-Sleep -Milliseconds 300
 
     $content = [System.IO.File]::ReadAllText($INI, [System.Text.Encoding]::GetEncoding(1251))
-    $content = $content -replace 'Profile=\d+', "Profile=$profileIndex"
+    $content = $content -replace '(?m)^Profile=\d+', "Profile=$profileIndex"
     [System.IO.File]::WriteAllText($INI, $content, [System.Text.Encoding]::GetEncoding(1251))
 
     Start-Process $TS_EXE

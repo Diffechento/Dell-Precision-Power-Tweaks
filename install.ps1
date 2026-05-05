@@ -1,4 +1,4 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
     Sets up ThrottleStop auto power-switching for Dell Precision 5570.
@@ -87,8 +87,8 @@ if (Test-Path $ini) {
     Start-Sleep -Milliseconds 400
     $ansi = [System.Text.Encoding]::GetEncoding(1251)
     $text = [System.IO.File]::ReadAllText($ini, $ansi)
-    $text = $text -replace 'ProfileName1=.*', 'ProfileName1=AC Max'
-    $text = $text -replace 'ProfileName4=.*', 'ProfileName4=Battery ECO'
+    $text = $text -replace '(?m)^ProfileName1=.*', 'ProfileName1=AC Max'
+    $text = $text -replace '(?m)^ProfileName4=.*', 'ProfileName4=Battery ECO'
     [System.IO.File]::WriteAllText($ini, $text, $ansi)
     Write-Host "INI profile names   : set (AC Max / Battery ECO)"
 } else {
@@ -150,7 +150,7 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1. Open ThrottleStop, go to Profile 1 (AC Max)"
 Write-Host "  2. Enable the 'BD PROCHOT' checkbox"
-Write-Host "     (if greyed out — UEFI PROCHOT Lock is not unlocked, see README.md Part 1)"
+Write-Host "     (if greyed out: UEFI PROCHOT Lock is not unlocked, see README.md Part 1)"
 Write-Host "  3. Click TURN ON"
 Write-Host ""
 Write-Host "Plug/unplug charger to test switching. Log: $TS_DIR\power_monitor.log"
