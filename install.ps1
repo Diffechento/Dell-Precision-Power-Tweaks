@@ -67,12 +67,20 @@ foreach ($line in $pnpLines) {
     }
 }
 
-# ── 4. Fix ThrottleStop.ini profile names ────────────────────────────────────
+# ── 4. Deploy ThrottleStop.ini (config + profile names) ──────────────────────
 
-$ini = "$TS_DIR\ThrottleStop.ini"
+$ini       = "$TS_DIR\ThrottleStop.ini"
+$configSrc = "$REPO\configs\ThrottleStop.ini"
+
+Get-Process ThrottleStop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 400
+
+if (Test-Path $configSrc) {
+    Copy-Item $configSrc $ini -Force
+    Write-Host "Config deployed     : ThrottleStop.ini (power limits, lock settings)"
+}
+
 if (Test-Path $ini) {
-    Get-Process ThrottleStop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 400
     $ansi = [System.Text.Encoding]::GetEncoding(1251)
     $text = [System.IO.File]::ReadAllText($ini, $ansi)
     $text = $text -replace '(?m)^ProfileName1=.*', 'ProfileName1=AC Max'

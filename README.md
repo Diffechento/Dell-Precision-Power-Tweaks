@@ -91,6 +91,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 `install.ps1` does everything automatically:
 - Copies `on_power_change.ps1` and `start_ts_minimized.ps1` into the ThrottleStop folder
+- Deploys `configs\ThrottleStop.ini` (power limits, lock settings) into the ThrottleStop folder
 - Reports the detected NVIDIA discrete GPU device ID (detection runs at runtime, no patching needed)
 - Fixes profile names in `ThrottleStop.ini`
 - Creates two scheduled tasks: `PowerSourceChange` and `ThrottleStop` (logon)
