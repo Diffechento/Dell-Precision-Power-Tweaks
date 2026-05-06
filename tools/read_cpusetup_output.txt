@@ -1,0 +1,48 @@
+Running as: user
+MODE: READ-ONLY — no modifications will be made
+
+============================================================
+Variable: CpuSetup
+GUID:     {B08F97FF-E6E8-4193-A997-5E9E9B0ADB32}
+============================================================
+Size:  1084 bytes (0x43C)
+Attrs: 0x00000007
+
+Raw dump saved: C:\Users\user\precision-5570-setup\tools\cpusetup_readonly_dump.bin
+
+Key offsets:
+  [0x000E] OC Lock                    = 0x00  (UNLOCKED)
+  [0x0043] CFG Lock                   = 0x00  (UNLOCKED)
+  [0x0045] (unknown 0x45)             = 0x00  (unknown value 0x00)
+  [0x007A] BD PROCHOT                 = 0x01  (enabled)
+  [0x007B] Disable PROCHOT Out        = 0x01  (disabled)
+  [0x007D] PROCHOT Lock               = 0x00  (UNLOCKED)
+  [0x007E] PROCHOT Response           = 0x01  (1)
+
+>>> Some bytes are non-zero — modify_both_vars.py would modify them.
+
+Hex dump around 0x00..0x10 (OC Lock area):
+  0x0000:  45  1B  1B  00  01  01  FF  00  00  01  01  00  01  00 *00  01   E...............
+  0x0010:  01  00  00  02  01  01  01  00  00  00  00  00  00  01  00  00   ................
+
+Hex dump around 0x38..0x50 (CFG Lock area):
+  0x0038:  B0  A1  03  00  01  01  01  01  01  01  01 *00  00 *00  00  00   ................
+  0x0048:  00  00  01  FF  02  02  02  02  02  00  00  00  00  00  00  00   ................
+
+Hex dump around 0x70..0x88 (PROCHOT area):
+  0x0070:  00  00  00  00  00  00  00  00  00  00 *01 *01  00 *00 *01  00   ................
+  0x0080:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00   ................
+
+============================================================
+Variable: Setup (for reference)
+GUID:     {EC87D643-EBA4-4BB5-A1E5-3F3E36B20DA9}
+============================================================
+Size:  3278 bytes (0xCCE)
+Attrs: 0x00000007
+  [0x00C8] AC Brick Capacity = 0x03 (75W)
+  [0x0043] CFG Lock (Setup)  = 0x00
+  [0x007D] PROCHOT Lock      = 0x00
+
+============================================================
+DONE — no modifications were made.
+============================================================

@@ -17,7 +17,7 @@ to disable BD PROCHOT input permanently.
 # 2. Copy ThrottleStop to any folder
 # 3. Run as Administrator:
 powershell -ExecutionPolicy Bypass -File install.ps1
-# 4. Open ThrottleStop → Profile 1 (AC Max) → tick "BD PROCHOT" → TURN ON
+# 4. Open ThrottleStop → Profile 1 (AC Max) → UNCHECK "BD PROCHOT" → TURN ON
 ```
 
 ---
@@ -91,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 `install.ps1` does everything automatically:
 - Copies `on_power_change.ps1` and `start_ts_minimized.ps1` into the ThrottleStop folder
-- Auto-detects the NVIDIA discrete GPU device ID and patches it into the script
+- Reports the detected NVIDIA discrete GPU device ID (detection runs at runtime, no patching needed)
 - Fixes profile names in `ThrottleStop.ini`
 - Creates two scheduled tasks: `PowerSourceChange` and `ThrottleStop` (logon)
 
@@ -108,9 +108,36 @@ powershell -ExecutionPolicy Bypass -File install.ps1 -ThrottleStopDir "C:\path\t
 | 1       | `0`       | AC Max      | Charger connected   |
 | 4       | `3`       | Battery ECO | Running on battery  |
 
-After install, open ThrottleStop and **in Profile 1 (AC Max) tick the "BD PROCHOT" checkbox**.  
-This is the core of the fix — it disables the throttle input from the EC.  
-If the checkbox is greyed out, PROCHOT Lock is still set (Part 1 not done).
+After install, open ThrottleStop and **in Profile 1 (AC Max) uncheck the "BD PROCHOT" checkbox**.  
+The checkbox reflects the current hardware state: checked = BD PROCHOT active (CPU throttles on external signal), unchecked = disabled. Before the UEFI unlock the checkbox is greyed out **and checked** (locked on) — Part 1 unlocks the MSR so ThrottleStop can clear it.  
+After correctly unchecking it, ThrottleStop 9.7 automatically re-locks the MSR to prevent other software from re-enabling it — the checkbox becomes greyed out **and unchecked**. This is correct and expected.  
+If the checkbox is greyed out **and checked**, PROCHOT Lock is still set in NVRAM (Part 1 not done).
+
+### Power limits (TPL)
+
+Open ThrottleStop → **TPL** button and set the following, then click **Apply → OK → TURN ON**:
+
+| | AC Max (Profile 1) | Battery ECO (Profile 4) |
+|---|---|---|
+| PL1 (sustained) | 65W | 28W |
+| PL2 (burst) | 115W | 45W |
+| Time window | 28 sec | 28 sec |
+| Lock | yes | yes |
+
+**PL1** is the sustained power limit. **PL2** is the short-term burst limit — the CPU runs at PL2 until the sliding average over the Time window reaches PL1, then drops back to PL1. Lock prevents Windows and Intel DTT from overwriting the limits.
+
+These values are already set in `configs\ThrottleStop.ini` — if you load the config in ThrottleStop it will populate the fields automatically.
+
+### Preventing conflicts with Intel DTT
+
+Windows ships with **Intel Innovation Platform Framework** (IPF/DTT) which dynamically adjusts CPU and GPU power limits and can overwrite ThrottleStop settings. With Lock enabled in TPL, ThrottleStop sets the MSR lock bit on every profile switch — DTT cannot write CPU power limits while the lock is active.
+
+Optionally, set the Windows **High Performance** power plan to prevent ACPI from frequency-scaling the CPU independently:
+
+```powershell
+# Run as Administrator
+powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+```
 
 ### How auto-switching works
 
@@ -131,10 +158,12 @@ precision-5570-setup\
 ├── README.md                    — this file
 ├── install.ps1                  — run as Admin to set everything up
 ├── scripts\
-│   ├── on_power_change.ps1      — AC/battery switch (event-triggered, uses $PSScriptRoot)
-│   └── start_ts_minimized.ps1   — starts ThrottleStop and minimizes it (logon task)
+│   ├── on_power_change.ps1      — AC/battery switch (event-triggered, NVIDIA auto-detected)
+│   └── start_ts_minimized.ps1   — starts ThrottleStop minimized at logon
 ├── configs\
-│   └── ThrottleStop.ini         — profile config backup (profiles 1 & 4)
+│   └── ThrottleStop.ini         — full config with power limits for all profiles
+├── docs\
+│   └── battery-controller-protocol.md  — Dell DDV WMI, ACPI WMDV commands, charge thresholds
 └── tools\
     └── read_cpusetup.py         — reads CpuSetup NVRAM, prints lock status
 ```
@@ -143,8 +172,11 @@ precision-5570-setup\
 
 ## Troubleshooting
 
-**BD PROCHOT checkbox is greyed out**  
-→ PROCHOT Lock is still set. Redo Part 1, verify with `read_cpusetup.py`.
+**BD PROCHOT checkbox is greyed out and unchecked**  
+→ This is correct. ThrottleStop 9.7 locked the MSR after disabling BD PROCHOT — no action needed.
+
+**BD PROCHOT checkbox is greyed out and checked**  
+→ PROCHOT Lock is still set in NVRAM. Redo Part 1, verify with `read_cpusetup.py`.
 
 **Switching doesn't fire on charger plug/unplug**  
 → Check task status: `schtasks /query /tn "PowerSourceChange" /fo LIST`  
@@ -156,7 +188,7 @@ precision-5570-setup\
 
 **After BIOS update, throttling returns**  
 → BIOS updates reset NVRAM. Redo Part 1 (GRUB unlock).  
-→ Re-enable BD PROCHOT checkbox in Profile 1 after reboot.
+→ Uncheck BD PROCHOT in Profile 1 again after reboot.
 
 **Need to check lock status without rebooting**  
 → `python tools\read_cpusetup.py` as Administrator → see `read_cpusetup_output.txt`.
