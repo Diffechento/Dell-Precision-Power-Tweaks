@@ -59,13 +59,10 @@ Write-Host "Scripts copied      : on_power_change.ps1, start_ts_minimized.ps1"
 
 # ── 3. Report NVIDIA detection (handled at runtime by on_power_change.ps1) ───
 
-$pnpLines = & pnputil /enum-devices /class Display 2>&1
-foreach ($line in $pnpLines) {
-    if ($line -match 'Instance ID:\s*(PCI\\VEN_10DE\S+)') {
-        Write-Host "NVIDIA device found : $($Matches[1].Trim())"
-        break
-    }
-}
+$nvidia = Get-PnpDevice -Class Display -ErrorAction SilentlyContinue |
+    Where-Object { $_.InstanceId -like 'PCI\VEN_10DE*' } | Select-Object -First 1
+if ($nvidia) { Write-Host "NVIDIA device found : $($nvidia.InstanceId)" }
+else { Write-Host "NVIDIA device found : none (GPU switching will be skipped)" }
 
 # ── 4. Deploy ThrottleStop.ini (config + profile names) ──────────────────────
 
@@ -93,8 +90,8 @@ if (Test-Path $ini) {
 
 # ── 5. Create scheduled tasks ─────────────────────────────────────────────────
 
-$sid = (New-Object System.Security.Principal.NTAccount("$env:USERDOMAIN\$env:USERNAME")).Translate(
-    [System.Security.Principal.SecurityIdentifier]).Value
+# Current user's SID directly: translating "$env:USERDOMAIN\$env:USERNAME" fails in SSH sessions
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 
 # Task: PowerSourceChange — fires on Kernel-Power Event 105 (AC plug/unplug)
 $xmlPower = @"

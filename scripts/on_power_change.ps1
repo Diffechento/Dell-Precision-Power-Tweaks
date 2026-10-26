@@ -6,13 +6,11 @@ $TS_EXE  = "$TS_DIR\ThrottleStop.exe"
 $INI     = "$TS_DIR\ThrottleStop.ini"
 $LOG     = "$TS_DIR\power_monitor.log"
 
-$NVIDIA  = $null
-foreach ($line in (& pnputil /enum-devices /class Display 2>&1)) {
-    if ($line -match 'Instance ID:\s*(PCI\\VEN_10DE\S+)') {
-        $NVIDIA = $Matches[1].Trim()
-        break
-    }
-}
+# Get-PnpDevice instead of parsing pnputil: pnputil output is localized ("Instance ID:" is translated on Russian Windows).
+# No -PresentOnly, so a disabled dGPU is still found.
+$NVIDIA  = Get-PnpDevice -Class Display -ErrorAction SilentlyContinue |
+    Where-Object { $_.InstanceId -like 'PCI\VEN_10DE*' } |
+    Select-Object -First 1 -ExpandProperty InstanceId
 
 function Log($msg) {
     Add-Content -Path $LOG -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $msg" -ErrorAction SilentlyContinue
