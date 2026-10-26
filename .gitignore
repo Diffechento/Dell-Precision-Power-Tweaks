@@ -1,0 +1,5 @@
+# DSDT dumps contain this machine's MAC address; asl.exe is Microsoft's binary (get_asl.ps1)
+tools/dsdt/*.aml
+tools/dsdt/*.dsl
+tools/dsdt/asl.exe
+__pycache__/

@@ -1,3 +1,6 @@
+# -Resume: run from the wake-from-sleep task, only re-checks the GPU power limit on AC
+param([switch]$Resume)
+
 $TS_DIR  = $PSScriptRoot
 $TS_EXE  = "$TS_DIR\ThrottleStop.exe"
 $INI     = "$TS_DIR\ThrottleStop.ini"
@@ -23,6 +26,29 @@ function Get-ACStatus {
         $b = Get-WmiObject -Class Win32_Battery -ErrorAction SilentlyContinue
         return ($b -eq $null -or $b.BatteryStatus -ne 1)
     }
+}
+
+function Get-GpuPowerLimit {
+    $line = & nvidia-smi -q -d POWER 2>$null | Select-String 'Current Power Limit\s*:\s*([\d.]+) W' | Select-Object -First 1
+    if ($line) { return [double]$line.Matches[0].Groups[1].Value }
+    return $null
+}
+
+# After enable / resume the dGPU can come up stuck at 20W (P5, mem 810MHz); restarting the device restores the full limit
+function Ensure-GpuFullPower {
+    if (-not $NVIDIA) { return }
+    $limit = $null
+    $deadline = (Get-Date).AddSeconds(15)
+    while ($limit -eq $null -and (Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 1
+        $limit = Get-GpuPowerLimit
+    }
+    Log "GPU power limit: $limit W"
+    if ($limit -eq $null -or $limit -ge 35) { return }
+
+    & pnputil /restart-device $NVIDIA | Out-Null
+    Start-Sleep -Seconds 5
+    Log "GPU restarted, power limit now: $(Get-GpuPowerLimit) W"
 }
 
 function Set-TSProfile($profileIndex) {
@@ -56,12 +82,20 @@ function Set-TSProfile($profileIndex) {
 Start-Sleep -Milliseconds 800
 
 $isAC = Get-ACStatus
+
+if ($Resume) {
+    Log "Event 507 (resume): AC=$isAC"
+    if ($isAC) { Ensure-GpuFullPower }
+    exit
+}
+
 Log "Event 105: AC=$isAC"
 
 if ($isAC) {
     Log "-> AC: Profile 0$(if ($NVIDIA) { ' + enabling NVIDIA' })"
     if ($NVIDIA) { & pnputil /enable-device $NVIDIA | Out-Null }
     Set-TSProfile 0
+    Ensure-GpuFullPower
 } else {
     Log "-> Battery: Profile 3$(if ($NVIDIA) { ' + disabling NVIDIA' })"
     Set-TSProfile 3

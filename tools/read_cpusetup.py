@@ -119,36 +119,42 @@ else:
     L(f"Raw dump saved: {dump_path}")
     L()
 
-    # Key offsets of interest
+    # Key offsets of interest (verified against the Setup IFR, BIOS 1.39-1.42).
+    # 0x0E is NOT OC Lock: it is "Per Core P State OS control mode" and should stay 0x01.
     KEY_OFFSETS = {
-        0x0E: ("OC Lock",              {0x00: "UNLOCKED", 0x01: "LOCKED"}),
-        0x43: ("CFG Lock",             {0x00: "UNLOCKED", 0x01: "LOCKED"}),
-        0x45: ("(unknown 0x45)",       {}),
-        0x7A: ("BD PROCHOT",           {0x00: "disabled", 0x01: "enabled"}),
-        0x7B: ("Disable PROCHOT Out",  {0x00: "normal",   0x01: "disabled"}),
-        0x7D: ("PROCHOT Lock",         {0x00: "UNLOCKED", 0x01: "LOCKED"}),
-        0x7E: ("PROCHOT Response",     {0x00: "0",        0x01: "1"}),
+        0x0E:  ("Per-core P-state OS ctl", {0x00: "disabled", 0x01: "enabled (default)"}),
+        0x43:  ("CFG Lock",                {0x00: "UNLOCKED", 0x01: "LOCKED"}),
+        0x45:  ("(unknown 0x45)",          {}),
+        0x7A:  ("BD PROCHOT",              {0x00: "disabled", 0x01: "enabled"}),
+        0x7B:  ("Disable PROCHOT Out",     {0x00: "normal",   0x01: "disabled"}),
+        0x7D:  ("PROCHOT Lock",            {0x00: "UNLOCKED", 0x01: "LOCKED"}),
+        0x7E:  ("PROCHOT Response",        {0x00: "0",        0x01: "1"}),
+        0x10E: ("OC Lock",                 {0x00: "UNLOCKED", 0x01: "LOCKED"}),
+        0x381: ("UnderVolt Protection",    {0x00: "UNLOCKED", 0x01: "LOCKED"}),
     }
+    LOCKS = {0x43, 0x7D, 0x10E, 0x381}
 
     L("Key offsets:")
-    all_zero = True
+    all_unlocked = True
     for off in sorted(KEY_OFFSETS):
         label, meanings = KEY_OFFSETS[off]
         val = cpu_data[off]
         meaning = meanings.get(val, f"unknown value 0x{val:02X}")
-        flag = " <-- LOCKED" if (val == 0x01 and "Lock" in label) else ""
+        flag = " <-- LOCKED" if (val == 0x01 and off in LOCKS) else ""
+        if off == 0x0E and val == 0x00:
+            flag = " <-- was zeroed by the old README, restore to 0x01"
         L(f"  [0x{off:04X}] {label:<26} = 0x{val:02X}  ({meaning}){flag}")
-        if val != 0x00:
-            all_zero = False
+        if off in LOCKS and val != 0x00:
+            all_unlocked = False
 
     L()
-    if all_zero:
-        L(">>> All target bytes are already 0x00 — modify_both_vars.py would make no changes.")
+    if all_unlocked:
+        L(">>> All locks are 0x00 (unlocked).")
     else:
-        L(">>> Some bytes are non-zero — modify_both_vars.py would modify them.")
+        L(">>> Some locks are still set.")
 
     L()
-    L("Hex dump around 0x00..0x10 (OC Lock area):")
+    L("Hex dump around 0x00..0x20 (0x0E per-core P-state):")
     hexdump(cpu_data, 0x00, 32, highlight_offsets={0x0E})
 
     L()
@@ -158,6 +164,14 @@ else:
     L()
     L("Hex dump around 0x70..0x88 (PROCHOT area):")
     hexdump(cpu_data, 0x70, 32, highlight_offsets={0x7A, 0x7B, 0x7D, 0x7E})
+
+    L()
+    L("Hex dump around 0x100..0x120 (OC Lock):")
+    hexdump(cpu_data, 0x100, 32, highlight_offsets={0x10E})
+
+    L()
+    L("Hex dump around 0x378..0x398 (UnderVolt Protection):")
+    hexdump(cpu_data, 0x378, 32, highlight_offsets={0x381})
 
 # =====================================================
 # Also read Setup for comparison

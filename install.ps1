@@ -112,6 +112,24 @@ $xmlPower = @"
 </Task>
 "@
 
+# Task: GpuResumeCheck — fires on Kernel-Power Event 507 (exit Modern Standby),
+# re-checks the dGPU power limit only (on_power_change.ps1 -Resume)
+$xmlResume = @"
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <Triggers><EventTrigger><Enabled>true</Enabled>
+    <Subscription>&lt;QueryList&gt;&lt;Query Id="0" Path="System"&gt;&lt;Select Path="System"&gt;*[System[Provider[@Name='Microsoft-Windows-Kernel-Power'] and EventID=507]]&lt;/Select&gt;&lt;/Query&gt;&lt;/QueryList&gt;</Subscription>
+    <Delay>PT5S</Delay>
+  </EventTrigger></Triggers>
+  <Principals><Principal><UserId>$sid</UserId><LogonType>InteractiveToken</LogonType><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
+  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><ExecutionTimeLimit>PT2M</ExecutionTimeLimit></Settings>
+  <Actions><Exec>
+    <Command>powershell.exe</Command>
+    <Arguments>-WindowStyle Hidden -ExecutionPolicy Bypass -File "$TS_DIR\on_power_change.ps1" -Resume</Arguments>
+  </Exec></Actions>
+</Task>
+"@
+
 # Task: ThrottleStop — start minimized at logon
 $xmlLogon = @"
 <?xml version="1.0" encoding="UTF-16"?>
@@ -127,7 +145,8 @@ $xmlLogon = @"
 "@
 
 foreach ($task in @(
-    [pscustomobject]@{ Name = "PowerSourceChange"; Xml = $xmlPower }
+    [pscustomobject]@{ Name = "PowerSourceChange"; Xml = $xmlPower  }
+    [pscustomobject]@{ Name = "GpuResumeCheck";    Xml = $xmlResume }
     [pscustomobject]@{ Name = "ThrottleStop";      Xml = $xmlLogon  }
 )) {
     $tmp = "$env:TEMP\ts_task_$($task.Name).xml"
